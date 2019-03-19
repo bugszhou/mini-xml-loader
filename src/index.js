@@ -56,6 +56,7 @@ function getRequire(resourcePath, importArr = []) {
     }
     str += `require('./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}');`
   });
+  return str;
 }
 
 function getRequireDir(resourcePath) {
