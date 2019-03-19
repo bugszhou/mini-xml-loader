@@ -49,9 +49,13 @@ function getRequire(resourcePath, importArr = []) {
 
   let str = '';
   importArr.forEach(importUrl => {
-    str += `require('./${path.relative(fileDir, path.join(srcDir, importUrl)).split(path.sep).join('/')}');`
+    let isRootUrl = importUrl.indexOf('\/') === 0,
+      sourceUrl = path.join(srcDir, importUrl);
+    if (!isRootUrl) {
+      sourceUrl = path.resolve(fileDir, importUrl);
+    }
+    str += `require('./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}');`
   });
-  return str;
 }
 
 function getRequireDir(resourcePath) {
