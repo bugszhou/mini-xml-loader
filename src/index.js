@@ -8,7 +8,7 @@ const path = require('path'),
   loaderUtils = require("loader-utils");
 
 function miniXmlLoader(source) {
-  const importReg = /<import[\s\S]*?src=[\"|\']([^\"]*?)[\"|\']>/gi;
+  const importReg = /<[(import|wxs)][\s\S]*?src=[\"|\']([^\"]*?)[\"|\']>/gi;
   let result = [],
     importArr = [];
   while (result = importReg.exec(source)) {
