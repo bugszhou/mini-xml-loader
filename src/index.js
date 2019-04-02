@@ -8,11 +8,15 @@ const path = require('path'),
   loaderUtils = require("loader-utils");
 
 function miniXmlLoader(source) {
-  const importReg = /<[(import|include|wxs|import\-sjs)][\s\S]*?src=[\"|\']([^\"]*?)[\"|\'][\s\S]*?>/gi;
+  const importReg = /<[(import|include|wxs|import\-sjs)][\s\S]*?src=[\"|\']([^\"]*?)[\"|\'][\s\S]*?>/gi,
+    varInputReg = /\{\{[\s\S]*?\}\}/gi;
   let result = [],
     importArr = [];
   while (result = importReg.exec(source)) {
-    importArr.push(result[1]);
+    let pathurl = result[1];
+    if (pathurl.search(varInputReg) < 0) {
+      importArr.push(pathurl);
+    }
   }
 
   const options = loaderUtils.getOptions(this) || {};
@@ -38,7 +42,6 @@ function miniXmlLoader(source) {
   if (typeof options.emitFile === 'undefined' || options.emitFile) {
     this.emitFile(outputPath, options.minimize ? setXmlMinify(source) : source);
   }
-
   return getRequire(this.resourcePath, importArr);
 };
 
@@ -47,15 +50,20 @@ function getRequire(resourcePath, importArr = []) {
     srcName = path.relative(process.cwd(), fileDir).split(path.sep)[0] || 'src',
     srcDir = path.resolve(process.cwd(), srcName);
 
-  let str = '';
+  let str = '',
+    urlCache = {};
   importArr.forEach(importUrl => {
     let isRootUrl = importUrl.indexOf('\/') === 0,
       sourceUrl = path.join(srcDir, importUrl);
     if (!isRootUrl) {
       sourceUrl = path.resolve(fileDir, importUrl);
     }
-    str += `require('./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}');`
+    if (!urlCache[sourceUrl]) {
+      str += `require('./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}');`;
+      urlCache[sourceUrl] = true;
+    }
   });
+  urlCache = {};
   return str;
 }
 
