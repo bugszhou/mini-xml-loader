@@ -79,6 +79,7 @@ function getRequireDir(resourcePath) {
  */
 function setXmlMinify(content = '') {
   return minify(content, {
+    keepClosingSlash: true,
     removeComments: true,
     collapseWhitespace: true,
     collapseInlineTagWhitespace: true,
