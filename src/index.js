@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 const path = require('path'),
+  isUrl = require('is-url'),
   minify = require('html-minifier').minify,
   loaderUtils = require("loader-utils");
 
@@ -14,7 +15,7 @@ function miniXmlLoader(source) {
     importArr = [];
   while (result = importReg.exec(source)) {
     let pathurl = result[1];
-    if (pathurl.search(varInputReg) < 0) {
+    if (pathurl.search(varInputReg) < 0 && !isUrl(pathurl)) {
       importArr.push(pathurl);
     }
   }
