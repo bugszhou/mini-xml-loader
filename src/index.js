@@ -84,7 +84,8 @@ function setXmlMinify(content = '') {
     removeComments: true,
     collapseWhitespace: true,
     collapseInlineTagWhitespace: true,
-    sortAttributes: true
+    sortAttributes: true,
+    caseSensitive: true,
   });
 }
 
