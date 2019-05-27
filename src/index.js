@@ -6,17 +6,23 @@ Object.defineProperty(exports, "__esModule", {
 const path = require('path'),
   isUrl = require('is-url'),
   minify = require('html-minifier').minify,
-  loaderUtils = require("loader-utils");
+  loaderUtils = require("loader-utils"),
+  fallbackFn = require('./utils/index');
 
 function miniXmlLoader(source) {
-  const importReg = /<[(import|include|wxs|import\-sjs)][\s\S]*?src=[\"|\']([^\"]*)[\"|\'][\s\S]*?>/gi,
+  const importReg = /<[(filter|import|include|wxs|import\-sjs)][\s\S]*?src=[\"|\']([^\"]*)[\"|\'][\s\S]*?>/gi,
     varInputReg = /\{\{[\s\S]*?\}\}/gi;
   let result = [],
+    miniJs = [],
     importArr = [];
   while (result = importReg.exec(source)) {
     let pathurl = result[1];
     if (pathurl.search(varInputReg) < 0 && !isUrl(pathurl)) {
-      importArr.push(pathurl);
+      if (/\.(js)$/.test(pathurl)) {
+        miniJs.push(pathurl);
+      } else {
+        importArr.push(pathurl);
+      }
     }
   }
 
@@ -43,7 +49,14 @@ function miniXmlLoader(source) {
   if (typeof options.emitFile === 'undefined' || options.emitFile) {
     this.emitFile(outputPath, options.minimize ? setXmlMinify(source) : source);
   }
-  return getRequire(this.resourcePath, importArr);
+  let miniJsStr = '';
+  if (miniJs.length && options.fallback) {
+    const { urls } = getRequire(this.resourcePath, miniJs);
+    miniJsStr = urls.map((url) => {
+      return `require('${fallbackFn(url, options.fallback)}');`;
+    }).join('');
+  }
+  return getRequire(this.resourcePath, importArr).str + miniJsStr;
 };
 
 function getRequire(resourcePath, importArr = []) {
@@ -52,6 +65,7 @@ function getRequire(resourcePath, importArr = []) {
     srcDir = path.resolve(process.cwd(), srcName);
 
   let str = '',
+    urls = [],
     urlCache = {};
   importArr.forEach(importUrl => {
     let isRootUrl = importUrl.indexOf('\/') === 0,
@@ -60,12 +74,17 @@ function getRequire(resourcePath, importArr = []) {
       sourceUrl = path.resolve(fileDir, importUrl);
     }
     if (!urlCache[sourceUrl]) {
-      str += `require('./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}');`;
+      const relativeUrl = `./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}`;
+      urls.push(relativeUrl);
+      str += `require('${relativeUrl}');`;
       urlCache[sourceUrl] = true;
     }
   });
   urlCache = {};
-  return str;
+  return {
+    str,
+    urls,
+  };
 }
 
 function getRequireDir(resourcePath) {
@@ -75,6 +94,7 @@ function getRequireDir(resourcePath) {
 
   return path.relative(srcDir, fileDir);
 }
+
 /**
  * xml minifier
  */
