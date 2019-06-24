@@ -6,25 +6,19 @@ Object.defineProperty(exports, "__esModule", {
 const path = require('path'),
   isUrl = require('is-url'),
   minify = require('html-minifier').minify,
+  HTML = require('html-parse-stringify2'),
   loaderUtils = require("loader-utils"),
   fallbackFn = require('./utils/index');
 
 function miniXmlLoader(source) {
-  const importReg = /<[(filter|import|include|wxs|import\-sjs)][\s\S]*?src=[\"|\']([^\"]*)[\"|\'][\s\S]*?>/gi,
-    varInputReg = /\{\{[\s\S]*?\}\}/gi;
+  const varInputReg = /\{\{[\s\S]*?\}\}*/gi;
   let result = [],
     miniJs = [],
     importArr = [];
-  while (result = importReg.exec(source)) {
-    let pathurl = result[1];
-    if (pathurl.search(varInputReg) < 0 && !isUrl(pathurl)) {
-      if (/\.(js)$/.test(pathurl)) {
-        miniJs.push(pathurl);
-      } else {
-        importArr.push(pathurl);
-      }
-    }
-  }
+  let ast = HTML.parse(source);
+  const srcData = getSources(ast);
+  miniJs = srcData.miniJs;
+  importArr = srcData.importArr;
 
   const options = loaderUtils.getOptions(this) || {};
 
@@ -107,6 +101,73 @@ function setXmlMinify(content = '') {
     sortAttributes: true,
     caseSensitive: true,
   });
+}
+
+/**
+ * 获取静态资源
+ */
+function getSources(ast = []) {
+  if (!ast) {
+    ast = [];
+  }
+  const sources = {
+    importArr: [],
+    miniJs: [],
+  };
+  forEach(ast);
+  function forEach(ast) {
+    ast.forEach((node) => {
+      const source = getSource(node);
+      if (source.type === 'js') {
+        sources.miniJs.push(source.url);
+      } else if(source.url) {
+        sources.importArr.push(source.url);
+      }
+      if (node.children && Array.isArray(node.children)) {
+        return forEach(node.children);
+      }
+    });
+  }
+
+  function getSource(node = {}) {
+    switch (node.name) {
+      case 'image':
+      case 'filter':
+      case 'import':
+      case 'include':
+      case 'wxs':
+      case 'import-sjs':
+        return getValue(node.attrs.src);
+        break;
+    }
+    return {
+      type: '',
+      url: '',
+    };
+  }
+
+  function getValue(pathname = '') {
+    const varInputReg = /\{\{[\s\S]*?\}\}*/gi;
+    if (pathname.search(varInputReg) < 0 && !isUrl(pathname)) {
+      if (/\.(js)$/.test(pathname)) {
+        return {
+          type: 'js',
+          url: pathname,
+        };
+      } else {
+        return {
+          type: 'other',
+          url: pathname,
+        };
+      }
+    }
+    return {
+      type: '',
+      url: '',
+    };
+  }
+
+  return sources;
 }
 
 exports.default = miniXmlLoader;
