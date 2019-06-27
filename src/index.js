@@ -132,6 +132,7 @@ function getSources(ast = []) {
   function getSource(node = {}) {
     switch (node.name) {
       case 'image':
+      case 'cover-image':
       case 'filter':
       case 'import':
       case 'include':
