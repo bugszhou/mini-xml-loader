@@ -100,6 +100,7 @@ function setXmlMinify(content = '') {
     collapseInlineTagWhitespace: true,
     sortAttributes: true,
     caseSensitive: true,
+    ignoreCustomFragments: [ /\{\{[\s\S]*?\}\}/ ],
   });
 }
 
