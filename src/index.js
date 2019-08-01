@@ -150,7 +150,7 @@ function getSources(ast = []) {
 
   function getValue(pathname = '') {
     const varInputReg = /\{\{[\s\S]*?\}\}*/gi;
-    if (/^(data\:)|(\<svg)/.test(pathname)) {
+    if (/^(data\:)|^(\<svg)/.test(pathname)) {
       return {
         type: '',
         url: '',
