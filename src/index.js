@@ -138,8 +138,10 @@ function getSources(ast = []) {
       case 'import':
       case 'include':
       case 'wxs':
-      case 'import-sjs':
         return getValue(node.attrs.src);
+        break;
+      case 'import-sjs':
+        return getValue(node.attrs.from);
         break;
     }
     return {
