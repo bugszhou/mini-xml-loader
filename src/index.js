@@ -87,7 +87,7 @@ function getRequireDir(resourcePath) {
     srcName = relativePath.split(path.sep)[0] || 'src',
     srcDir = path.resolve(process.cwd(), srcName);
 
-  return path.relative(srcDir.includes("node_modules") ? process.cwd() : srcDir, fileDir);
+  return path.relative(srcDir, fileDir);
 }
 
 /**
