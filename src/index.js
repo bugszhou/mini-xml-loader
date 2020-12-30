@@ -83,10 +83,11 @@ function getRequire(resourcePath, importArr = []) {
 
 function getRequireDir(resourcePath) {
   const fileDir = path.dirname(resourcePath),
-    srcName = path.relative(process.cwd(), fileDir).split(path.sep)[0] || 'src',
+    relativePath = path.relative(process.cwd(), fileDir),
+    srcName = relativePath.split(path.sep)[0] || 'src',
     srcDir = path.resolve(process.cwd(), srcName);
 
-  return path.relative(srcDir, fileDir);
+  return path.relative(srcDir.includes("node_modules") ? process.cwd() : srcDir, fileDir);
 }
 
 /**
