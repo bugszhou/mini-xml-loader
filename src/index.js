@@ -92,7 +92,7 @@ function getRequireDir(resourcePath) {
     relativePath = path.relative(process.cwd(), fileDir),
     srcName = relativePath.split(path.sep)[0] || 'src',
     srcDir = path.resolve(process.cwd(), srcName);
-
+  console.log(path.relative(srcDir, fileDir));
   return path.relative(srcDir, fileDir);
 }
 
@@ -117,9 +117,19 @@ function getNodeModulesSource(resourcePath) {
       throw e;
     }
   }
-  if (!jsonData.miniprogram || !jsonData.files) {
+  if (!jsonData.miniprogram && !jsonData.files) {
     return resourcePath;
   }
+  let libNames = [];
+  if (Array.isArray(jsonData.files)) {
+    libName = [...jsonData.files, jsonData.miniprogram || ""];
+  } else {
+    libName = [jsonData.files, jsonData.miniprogram || ""];
+  }
+
+  // if (libName.includes(urls[ind])) {
+  //   return path.resolve(nodeModulesPath, urls.join("/"));
+  // }
   urls.splice(ind, 1, "");
   return path.resolve(nodeModulesPath, urls.join("/"));
 }
