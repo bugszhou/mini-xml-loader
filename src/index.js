@@ -3,12 +3,14 @@
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
+const { existsSync, readFileSync } = require('fs');
 const path = require('path'),
   isUrl = require('is-url'),
   minify = require('html-minifier').minify,
   HTML = require('html-parse-stringify2'),
   loaderUtils = require("loader-utils"),
   fallbackFn = require('./utils/index');
+const { node } = require('webpack');
 
 function miniXmlLoader(source) {
   const varInputReg = /\{\{[\s\S]*?\}\}*/gi;
@@ -82,12 +84,44 @@ function getRequire(resourcePath, importArr = []) {
 }
 
 function getRequireDir(resourcePath) {
-  const fileDir = path.dirname(resourcePath),
+  let tmpPath = resourcePath;
+  if (tmpPath.includes("node_modules")) {
+    tmpPath = getNodeModulesSource(resourcePath);
+  }
+  const fileDir = path.dirname(tmpPath),
     relativePath = path.relative(process.cwd(), fileDir),
     srcName = relativePath.split(path.sep)[0] || 'src',
     srcDir = path.resolve(process.cwd(), srcName);
 
   return path.relative(srcDir, fileDir);
+}
+
+function getNodeModulesSource(resourcePath) {
+  const nodeModulesPath = path.resolve(process.cwd(), "node_modules");
+  const moduleRelativePath = path.relative(nodeModulesPath, resourcePath);
+  const urls = moduleRelativePath.split("/");
+  let jsonData = {};
+  let ind = 1;
+  if (existsSync(path.resolve(nodeModulesPath, urls[0], "package.json"))) {
+    try {
+      jsonData = JSON.parse(readFileSync(path.resolve(nodeModulesPath, urls[0], "package.json")).toString());
+      ind = 1;
+    } catch (e) {
+      throw e;
+    }
+  } else {
+    try {
+      jsonData = JSON.parse(readFileSync(path.resolve(nodeModulesPath, urls[0], urls[1], "package.json")).toString());
+      ind = 2;
+    } catch (e) {
+      throw e;
+    }
+  }
+  if (!jsonData.miniprogram || !jsonData.files) {
+    return resourcePath;
+  }
+  urls.splice(ind, 1, "");
+  return path.resolve(nodeModulesPath, urls.join("/"));
 }
 
 /**
