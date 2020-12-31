@@ -92,7 +92,7 @@ function getRequireDir(resourcePath) {
     relativePath = path.relative(process.cwd(), fileDir),
     srcName = relativePath.split(path.sep)[0] || 'src',
     srcDir = path.resolve(process.cwd(), srcName);
-  console.log(path.relative(srcDir, fileDir));
+
   return path.relative(srcDir, fileDir);
 }
 
