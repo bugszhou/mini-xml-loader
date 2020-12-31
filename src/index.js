@@ -122,12 +122,12 @@ function getNodeModulesSource(resourcePath) {
   }
   let libNames = [];
   if (Array.isArray(jsonData.files)) {
-    libName = [...jsonData.files, jsonData.miniprogram || ""];
+    libNames = [...jsonData.files, jsonData.miniprogram || ""];
   } else {
-    libName = [jsonData.files, jsonData.miniprogram || ""];
+    libNames = [jsonData.files, jsonData.miniprogram || ""];
   }
 
-  // if (libName.includes(urls[ind])) {
+  // if (libNames.includes(urls[ind])) {
   //   return path.resolve(nodeModulesPath, urls.join("/"));
   // }
   urls.splice(ind, 1, "");
