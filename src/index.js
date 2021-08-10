@@ -98,8 +98,8 @@ function getRequireDir(resourcePath) {
 
 function getNodeModulesSource(resourcePath) {
   const nodeModulesPath = path.resolve(process.cwd(), "node_modules");
-  const moduleRelativePath = path.relative(nodeModulesPath, resourcePath);
-  const urls = moduleRelativePath.split("/");
+  const moduleRelativePath = path.normalize(path.relative(nodeModulesPath, resourcePath));
+  const urls = moduleRelativePath.split(path.sep);
   let jsonData = {};
   let ind = 1;
   if (existsSync(path.resolve(nodeModulesPath, urls[0], "package.json"))) {
