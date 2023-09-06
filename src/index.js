@@ -1,76 +1,153 @@
-'use strict';
+"use strict";
 
 Object.defineProperty(exports, "__esModule", {
-  value: true
+  value: true,
 });
-const { existsSync, readFileSync } = require('fs');
-const path = require('path'),
-  isUrl = require('is-url'),
-  minify = require('html-minifier').minify,
-  HTML = require('html-parse-stringify2'),
+const { existsSync, readFileSync } = require("fs");
+const path = require("path"),
+  isUrl = require("is-url"),
+  minify = require("html-minifier").minify,
+  HTML = require("html-parse-stringify2"),
   loaderUtils = require("loader-utils"),
-  fallbackFn = require('./utils/index');
-const { node } = require('webpack');
+  fallbackFn = require("./utils/index");
+
+const configPath = path.join(process.cwd(), "src/templates.json");
+const root = path.join(process.cwd(), "src");
 
 function miniXmlLoader(source) {
   const varInputReg = /\{\{[\s\S]*?\}\}*/gi;
   let result = [],
     miniJs = [],
     importArr = [];
-  let ast = HTML.parse(source);
-  const srcData = getSources(ast);
-  miniJs = srcData.miniJs;
-  importArr = srcData.importArr;
 
   const options = loaderUtils.getOptions(this) || {};
 
   const context = options.context || this.rootContext;
 
-  const url = loaderUtils.interpolateName(this, path.join(getRequireDir(this.resourcePath), options.filename), {
-    context,
-    source,
-    regExp: options.regExp,
-  });
+  const url = loaderUtils.interpolateName(
+    this,
+    path.join(getRequireDir(this.resourcePath), options.filename),
+    {
+      context,
+      source,
+      regExp: options.regExp,
+    },
+  );
+
+  let config = Object.create(null);
+  if (existsSync(configPath)) {
+    config = JSON.parse(readFileSync(configPath).toString() || "{}");
+  }
+
+  const templates =
+    config.ignore === true ? "" : addGlobalTemplates(this.resourcePath, config);
+
+  source = `${source}\n${templates}`;
+
+  let ast = HTML.parse(source);
+  const srcData = getSources(ast);
+  miniJs = srcData.miniJs;
+  importArr = srcData.importArr;
 
   let outputPath = url;
 
   if (options.outputPath) {
-    if (typeof options.outputPath === 'function') {
+    if (typeof options.outputPath === "function") {
       outputPath = options.outputPath(url, this.resourcePath, context);
     } else {
       outputPath = path.posix.join(options.outputPath, url);
     }
   }
 
-  if (typeof options.emitFile === 'undefined' || options.emitFile) {
+  if (typeof options.emitFile === "undefined" || options.emitFile) {
     this.emitFile(outputPath, options.minimize ? setXmlMinify(source) : source);
   }
-  let miniJsStr = '';
+  let miniJsStr = "";
   if (miniJs.length && options.fallback) {
     const { urls } = getRequire(this.resourcePath, miniJs);
-    miniJsStr = urls.map((url) => {
-      return `require('${fallbackFn(url, options.fallback)}');`;
-    }).join('');
+    miniJsStr = urls
+      .map((url) => {
+        return `require('${fallbackFn(url, options.fallback)}');`;
+      })
+      .join("");
   }
   return getRequire(this.resourcePath, importArr).str + miniJsStr;
-};
+}
+
+/**
+ * @param {sring} pathUrl
+ * @param {{loaders: {test: string, templates: {path:string}[]}[]}} config
+ * @return {string}
+ */
+function addGlobalTemplates(pathUrl, config) {
+  if (!config || !Array.isArray(config.loaders)) {
+    return [];
+  }
+
+  /** @type {{path: string}[]} */
+  let configTemplates = [];
+  config.loaders
+    .filter((item) => {
+      const isNot = startWith(item.test, "!");
+      const regStr = isNot ? item.test.replace("!", "") : item.test;
+      const reg = new RegExp(regStr);
+
+      return isNot ? !reg.test(pathUrl) : reg.test(pathUrl);
+    })
+    .forEach((item) => {
+      configTemplates = configTemplates.concat(item.templates);
+    });
+
+  const templates = configTemplates
+    .map((item) => {
+      if (!item || !item.path) {
+        return "";
+      }
+
+      if (startWith(item.path, ".")) {
+        return item.path.replace(".", "");
+      }
+
+      if (!startWith(item.path, "/")) {
+        return `/${item.path}`;
+      }
+
+      return item.path;
+    })
+    .filter((item) => item && item !== pathUrl)
+    .map((item) => {
+      return `<include src="${item}" ></include>`;
+    });
+
+  return templates.join("\n") || "";
+}
+
+/** @param {string} source @param {string} str */
+function startWith(source, str) {
+  const index = source.indexOf(str);
+
+  return index === 0;
+}
 
 function getRequire(resourcePath, importArr = []) {
   const fileDir = path.dirname(resourcePath),
-    srcName = path.relative(process.cwd(), fileDir).split(path.sep)[0] || 'src',
+    srcName = path.relative(process.cwd(), fileDir).split(path.sep)[0] || "src",
     srcDir = path.resolve(process.cwd(), srcName);
 
-  let str = '',
+  let str = "",
     urls = [],
     urlCache = {};
-  importArr.forEach(importUrl => {
-    let isRootUrl = importUrl.indexOf('\/') === 0,
+  importArr.forEach((importUrl) => {
+    let isRootUrl = importUrl.indexOf("/") === 0,
       sourceUrl = path.join(srcDir, importUrl);
     if (!isRootUrl) {
       sourceUrl = path.resolve(fileDir, importUrl);
     }
     if (!urlCache[sourceUrl]) {
-      const relativeUrl = `./${path.relative(fileDir, sourceUrl).split(path.sep).join('/')}`;
+      const relativeUrl = `./${path
+        .relative(fileDir, sourceUrl)
+        .split(path.sep)
+        .join("/")}`;
       urls.push(relativeUrl);
       str += `require('${relativeUrl}');`;
       urlCache[sourceUrl] = true;
@@ -90,7 +167,7 @@ function getRequireDir(resourcePath) {
   }
   const fileDir = path.dirname(tmpPath),
     relativePath = path.relative(process.cwd(), fileDir),
-    srcName = relativePath.split(path.sep)[0] || 'src',
+    srcName = relativePath.split(path.sep)[0] || "src",
     srcDir = path.resolve(process.cwd(), srcName);
 
   return path.relative(srcDir, fileDir);
@@ -98,20 +175,30 @@ function getRequireDir(resourcePath) {
 
 function getNodeModulesSource(resourcePath) {
   const nodeModulesPath = path.resolve(process.cwd(), "node_modules");
-  const moduleRelativePath = path.normalize(path.relative(nodeModulesPath, resourcePath));
+  const moduleRelativePath = path.normalize(
+    path.relative(nodeModulesPath, resourcePath),
+  );
   const urls = moduleRelativePath.split(path.sep);
   let jsonData = {};
   let ind = 1;
   if (existsSync(path.resolve(nodeModulesPath, urls[0], "package.json"))) {
     try {
-      jsonData = JSON.parse(readFileSync(path.resolve(nodeModulesPath, urls[0], "package.json")).toString());
+      jsonData = JSON.parse(
+        readFileSync(
+          path.resolve(nodeModulesPath, urls[0], "package.json"),
+        ).toString(),
+      );
       ind = 1;
     } catch (e) {
       throw e;
     }
   } else {
     try {
-      jsonData = JSON.parse(readFileSync(path.resolve(nodeModulesPath, urls[0], urls[1], "package.json")).toString());
+      jsonData = JSON.parse(
+        readFileSync(
+          path.resolve(nodeModulesPath, urls[0], urls[1], "package.json"),
+        ).toString(),
+      );
       ind = 2;
     } catch (e) {
       throw e;
@@ -137,7 +224,7 @@ function getNodeModulesSource(resourcePath) {
 /**
  * xml minifier
  */
-function setXmlMinify(content = '') {
+function setXmlMinify(content = "") {
   return minify(content, {
     keepClosingSlash: true,
     removeComments: true,
@@ -145,7 +232,7 @@ function setXmlMinify(content = '') {
     collapseInlineTagWhitespace: true,
     sortAttributes: true,
     caseSensitive: true,
-    ignoreCustomFragments: [ /\{\{[\s\S]*?\}\}/ ],
+    ignoreCustomFragments: [/\{\{[\s\S]*?\}\}/],
   });
 }
 
@@ -164,9 +251,9 @@ function getSources(ast = []) {
   function forEach(ast) {
     ast.forEach((node) => {
       const source = getSource(node);
-      if (source.type === 'js') {
+      if (source.type === "js") {
         sources.miniJs.push(source.url);
-      } else if(source.url) {
+      } else if (source.url) {
         sources.importArr.push(source.url);
       }
       if (node.children && Array.isArray(node.children)) {
@@ -177,48 +264,48 @@ function getSources(ast = []) {
 
   function getSource(node = {}) {
     switch (node.name) {
-      case 'image':
-      case 'cover-image':
-      case 'filter':
-      case 'import':
-      case 'include':
-      case 'wxs':
+      case "image":
+      case "cover-image":
+      case "filter":
+      case "import":
+      case "include":
+      case "wxs":
         return getValue(node.attrs.src);
         break;
-      case 'import-sjs':
+      case "import-sjs":
         return getValue(node.attrs.from);
         break;
     }
     return {
-      type: '',
-      url: '',
+      type: "",
+      url: "",
     };
   }
 
-  function getValue(pathname = '') {
+  function getValue(pathname = "") {
     const varInputReg = /\{\{[\s\S]*?\}\}*/gi;
     if (/^(data\:)|^(\<svg)/.test(pathname)) {
       return {
-        type: '',
-        url: '',
+        type: "",
+        url: "",
       };
     }
     if (pathname.search(varInputReg) < 0 && !isUrl(pathname)) {
       if (/\.(js)$/.test(pathname)) {
         return {
-          type: 'js',
+          type: "js",
           url: pathname,
         };
       } else {
         return {
-          type: 'other',
+          type: "other",
           url: pathname,
         };
       }
     }
     return {
-      type: '',
-      url: '',
+      type: "",
+      url: "",
     };
   }
 
