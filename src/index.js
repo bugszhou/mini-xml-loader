@@ -88,11 +88,16 @@ function addGlobalTemplates(pathUrl, config) {
   let configTemplates = [];
   config.loaders
     .filter((item) => {
-      const isNot = startWith(item.test, "!");
-      const regStr = isNot ? item.test.replace("!", "") : item.test;
-      const reg = new RegExp(regStr);
+      /** @type {string[]} */
+      const testes = Array.isArray(item.test) ? item.test : [item.test];
 
-      return isNot ? !reg.test(pathUrl) : reg.test(pathUrl);
+      return testes.every((test) => {
+        const isNot = startWith(test, "!");
+        const regStr = isNot ? test.replace("!", "") : test;
+        const reg = new RegExp(regStr);
+
+        return isNot ? !reg.test(pathUrl) : reg.test(pathUrl);
+      });
     })
     .forEach((item) => {
       configTemplates = configTemplates.concat(item.templates);
