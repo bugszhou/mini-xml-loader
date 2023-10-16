@@ -84,7 +84,7 @@ function addGlobalTemplates(pathUrl, config) {
     return [];
   }
 
-  /** @type {{path: string}[]} */
+  /** @type {{path: string, type?: "import" | "include"}[]} */
   let configTemplates = [];
   config.loaders
     .filter((item) => {
@@ -105,23 +105,42 @@ function addGlobalTemplates(pathUrl, config) {
 
   const templates = configTemplates
     .map((item) => {
+      const template = {
+        path: item.path,
+        type: item.type || "import"
+      };
       if (!item || !item.path) {
-        return "";
+        template.path = "";
+        return template;
       }
 
       if (startWith(item.path, ".")) {
-        return item.path.replace(".", "");
+        template.path = item.path.replace(".", "");
+        return template;
       }
 
       if (!startWith(item.path, "/")) {
-        return `/${item.path}`;
+        template.path =  `/${item.path}`;
+        return template;
       }
 
-      return item.path;
+      return template;
     })
-    .filter((item) => item && item !== pathUrl)
+    .filter((item) => item && item.path !== pathUrl)
     .map((item) => {
-      return `<include src="${item}" ></include>`;
+      if (item.type === "import") {
+        return `<include src="${item.path}" ></include>`;
+      }
+
+      if (item.type === "include") {
+        try {
+          return readFileSync(path.join(root, item.path)).toString();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      return "";
     });
 
   return templates.join("\n") || "";

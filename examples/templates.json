@@ -5,7 +5,12 @@
       "test": "!(components|b-components|templates|custom-tab-bar)",
       "templates": [
         {
-          "path": "templates/demo.wxml"
+          "path": "templates/demo.wxml",
+          "type": "import"
+        },
+        {
+          "path": "templates/demo1.wxml",
+          "type": "include"
         }
       ]
     }
